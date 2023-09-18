@@ -4,10 +4,9 @@ import pyworld as pw
 from tqdm import tqdm
 import traceback
 import glob
-import tools
 import functools
 import numpy as np
-from . import multiTask, scpTools, dirTools
+from . import multiTask, scpTools, dirTools, tools
 import librosa
 import xlwt
 from scipy.interpolate import interp1d
