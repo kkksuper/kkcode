@@ -1,0 +1,6 @@
+{
+    "files.watcherExclude":{
+        "**/tmp/**":true,
+        "**/workroom/**":true,
+    }
+}
