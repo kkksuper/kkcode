@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='kkcode',
-    version='0.0.2',
+    version='0.0.3',
     packages=['kkTools'],
     url='https://gitee.com/kksuperr/kkcode',
     license='MIT',
