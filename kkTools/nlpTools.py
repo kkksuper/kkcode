@@ -889,9 +889,6 @@ def main():
         out_dir = "/home/work_nfs5_ssd/hzli/data/spontaneous/syllabel_no_modal"
         letter2tag = {"嗯": 1, "呃": 2}
         delmodal_from_syllabel(in_dir, out_dir, letter2tag)
-    elif mode == 3:
-        in_dir = "/home/work_nfs5_ssd/hzli/nlp/sequence_labeling/logdir/toneword_predict_220301/test.log"
-        calc_indicators(in_dir)
     elif mode == 4:
         in_dir = "/home/work_nfs5_ssd/hzli/data/nlp/Train_Ali_near/txts"
         utts = scpTools.genscp_in_list(in_dir)

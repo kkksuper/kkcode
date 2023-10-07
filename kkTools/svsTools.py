@@ -1,6 +1,7 @@
 import os
 from tqdm import tqdm
 import glob
+import pretty_midi
 from . import labelTools
 
 def get_num_from_pos(pho_pos_in_note):
@@ -228,7 +229,7 @@ def fix_TTSlabel_prosody(in_dir, out_dir, old_prosody, new_prosody):
         out_path = os.path.join(out_dir, os.path.basename(label))
         labelTools.write_label(out_path, [phone, tone, seg_tag, new_prosodies])
         
-import pretty_midi
+
 
 def midi_parser(midi_fname):
     midi_data = pretty_midi.PrettyMIDI(midi_fname)

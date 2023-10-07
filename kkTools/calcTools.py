@@ -2,7 +2,8 @@ import os
 from tqdm import tqdm
 import traceback
 import numpy as np
-from . import scpTools
+
+from . import scpTools, wavTools
 
 def calc_square_error(np1, np2):
     """
@@ -70,14 +71,12 @@ def calc_RMSE(dir1, dir2, utts=None):
             print(utt)
             traceback.print_exc()
             break
-
-    print((error / num) ** 0.5)
+        
     return (error / num) ** 0.5
 
 
 def calc_dur_acc(np_1, np_2):
     '''
-    经过重构，可能有问题，使用时注意
     acc = 1 - [++abs(predict(i) - real(i)) / ++max(predict(i), real(i))]
     '''
     fenzi = np.sum(np.abs(np_1 - np_2))
@@ -102,6 +101,85 @@ def calc_corr(np_1, np_2):
     return np.corrcoef(np_1, np_2)
 
 
+def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=16000, hop_size=200, win_size=800):
+    '''
+    调用 torchmetrics 计算 pesq, 越高越好，−0.5 ∼ 4.5，PESQ 值越高则表明被测试的语音具有越好的听觉语音质量 \n
+    mode: \n
+    wb: wide bond 16k \n
+    nb: narrow bond 8k
+    '''
+    import torch
+    from torchaudio.transforms import Resample
+    from torchmetrics.audio import PerceptualEvaluationSpeechQuality
+    
+    assert mode in ("wb", "nb")
+    fs = 16000 if mode == "wb" else 8000
+    resample = Resample(sample_rate, fs)
+    pesq = PerceptualEvaluationSpeechQuality(fs, mode)
+    
+    if utts is None:
+        utts = scpTools.genscp_in_list(fake_wav_dir)
+    
+    result = []
+    for utt in tqdm(utts):
+        fake_wav = torch.from_numpy(
+            wavTools.load_wav(
+                os.path.join(fake_wav_dir, f'{utt}.wav'),
+                target_sr=sample_rate,
+                win_size=win_size,
+                hop_size=hop_size,
+            ),
+        ).float()
+        real_wav = torch.from_numpy(
+            wavTools.load_wav(
+                os.path.join(real_wav_dir, f'{utt}.wav'),
+                target_sr=sample_rate,
+                win_size=win_size,
+                hop_size=hop_size,
+            ),
+        ).float()
+        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        result.append(pesq(resample(fake_wav), resample(real_wav)))
+    return result
+
+
+def calc_stoi(fake_wav_dir, real_wav_dir, utts=None, sample_rate=16000, hop_size=200, win_size=800):
+    '''
+    调用 torchmetrics 计算 stoi，越高越好，0 ∼ 1 中，代表单词被正确理解的百分比，数值取1 时表示语音能够被充分理解 \n
+    '''
+    import torch
+    from torchmetrics.audio import ShortTimeObjectiveIntelligibility
+
+    stoi = ShortTimeObjectiveIntelligibility(sample_rate)
+    
+    if utts is None:
+        utts = scpTools.genscp_in_list(fake_wav_dir)
+    
+    result = []
+    for utt in tqdm(utts):
+        fake_wav = torch.from_numpy(
+            wavTools.load_wav(
+                os.path.join(fake_wav_dir, f'{utt}.wav'),
+                target_sr=sample_rate,
+                win_size=win_size,
+                hop_size=hop_size,
+            ),
+        ).float()
+        real_wav = torch.from_numpy(
+            wavTools.load_wav(
+                os.path.join(real_wav_dir, f'{utt}.wav'),
+                target_sr=sample_rate,
+                win_size=win_size,
+                hop_size=hop_size,
+            ),
+        ).float()
+        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        result.append(stoi(fake_wav, real_wav))
+    return result
+
+
 def main():
 
     mode = 3
@@ -111,6 +189,7 @@ def main():
         dir2 = "/home/work_nfs5_ssd/hzli/logdir/syn_M_last/pitch/"
         calc_RMSE(dir1, dir2)
     elif mode == 1:
+        from . import scpTools
         in_dir_1 = "/home/work_nfs5_ssd/hzli/kkcode/tmp/real_mels"
         in_dir_2 = "/home/work_nfs5_ssd/hzli/kkcode/tmp/fake_mels"
         utts = scpTools.genscp_in_list(in_dir_1)

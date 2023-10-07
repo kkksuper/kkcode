@@ -12,6 +12,21 @@ import xlwt
 from scipy.interpolate import interp1d
 
 
+def load_wav(wav_path, target_sr=24000, win_size=1024, hop_size=256):
+    audio, raw_sr = librosa.core.load(wav_path, sr=None)
+    if raw_sr != target_sr:
+        audio = librosa.core.resample(
+            audio, orig_sr=raw_sr, target_sr=target_sr, res_type="kaiser_best"
+        )
+        target_length = (audio.size // hop_size + win_size // hop_size) * hop_size
+        pad_len = (target_length - audio.size) // 2
+        if audio.size % 2 == 0:
+            audio = np.pad(audio, (pad_len, pad_len), mode="reflect")
+        else:
+            audio = np.pad(audio, (pad_len, pad_len + 1), mode="reflect")
+    return audio
+
+
 def get_ttsing_sillist(label_dir, name):
     '''
     从每个label中得到其最后一行静音的时长

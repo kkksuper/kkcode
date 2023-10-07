@@ -5,7 +5,8 @@ from tqdm import tqdm
 import glob
 import traceback
 import re
-from . import functools, tools, scpTools
+import functools
+from . import tools, scpTools
 
 
 def compareDir_by_format(dir_1, dir_2, format_1, format_2):

@@ -43,7 +43,6 @@ def durConvert(in_dir,
                new_sr=24000,
                new_hop_size=256):
     '''
-    重构过，可能有问题 -》 无问题
     将提取到的 old_hop_size 的时长转化为 new_hop_size 的时长 \n
     '''
     if not os.path.isdir(out_dir):
