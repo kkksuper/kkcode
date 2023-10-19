@@ -1,7 +1,5 @@
-from email.mime import audio
 import os
 import sys
-import chardet
 import numpy as np
 import glob
 from tqdm import tqdm

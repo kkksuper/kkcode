@@ -4,13 +4,11 @@ from tqdm import tqdm
 import glob
 import traceback
 from functools import partial
-
-import multiTask
 from concurrent.futures import ProcessPoolExecutor
 
 from zhon.hanzi import punctuation
 import string
-from . import scpTools
+from . import scpTools, multiTask
 
 fix_punc = ',，？'
 

@@ -1,5 +1,4 @@
 import multiprocessing
-from . import scpTools
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from tqdm import tqdm
