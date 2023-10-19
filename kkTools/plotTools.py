@@ -1,11 +1,11 @@
 import os
 import numpy as np
 from tqdm import tqdm
-import xlwt
-import wave
 import pandas as pd
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
 from . import wavTools
 
 
@@ -92,9 +92,50 @@ def plot_pitch_mel(pitch, mel, outfile):
     plt.savefig(outfile)
 
 
+def plot_tsne(utts, utts2type, in_dir, out_path, save_format='pdf', type2color=None, legend=False):
+    '''
+    读取路径下的特征(np 格式)，按照不同类别分别不同颜色，绘制 tsne 图，并保存到 out_path 下 \n
+    可以传入 type2color 字典，为每个 type 指定颜色，如 {"01":'c',"02":'k'} \n
+    '''
+    matplotlib.use('Agg')
+    
+    types = set([utts2type[utt] for utt in utts2type])
+    
+    for type in types:
+        print(type, len([i for i in utts if i.startswith(type)]))
+    
+    if type2color is None:
+        palette = np.array(sns.color_palette("hls", len(types)))
+        type2color = {}
+        for i, type in enumerate(types):
+            type2color[type] = np.array(palette[i]).reshape(1,-1)
+    
+    data = []
+    for utt in utts:
+        d = np.load(os.path.join(in_dir, f'{utt}.npy'))
+        data.append(d)
+    data = np.array(data)
+    
+    tsne = TSNE(n_components=2).fit_transform(data)
+    
+    fig, ax = plt.subplots()
+    ax.set_xticks([])
+    ax.set_yticks([])
+    
+    type2islegned = {type:False for type in types}
+    for index, utt in enumerate(utts):
+        ax.scatter(tsne[index, 0], tsne[index, 1], c=type2color[utts2type[utt]], marker='o', cmap='coolwarm', s=10, label=None if type2islegned[utts2type[utt]] else utts2type[utt])
+        type2islegned[utts2type[utt]] = True
+    
+    if legend:
+      ax.legend()
+    fig.savefig(out_path, dpi=600, format=save_format, pad_inches=0.0, bbox_inches='tight')
+
+
+
 def main():
 
-    mode = 0
+    mode = 3
 
     if mode == 0:
         pitch_path = "/home/work_nfs5_ssd/hzli/data/db6/pitches/db6_emotion_surprise_241609.npy"
@@ -114,6 +155,12 @@ def main():
         wav_paths = [os.path.join(d, f"{utt}.wav") for d in wav_dirs]
         labels = ['baseline', 'tp', 'tp-gst', 'proposed']
         plot_multi_pitch(wav_paths, out_path, labels)
+    if mode == 3:
+        in_dir = '/home/work_nfs4_ssd/ykli/work/as_ssl/syn/ref-blstm/emo_emb1/'
+        import scpTools
+        utts = scpTools.scp2list('/home/work_nfs7/ykli/data/ipa_emo_data/file_lst/db6.lst')
+        utt2type = {utt:utt.split('_')[1] for utt in utts}
+        plot_tsne(utts, utt2type, in_dir, '/home/work_nfs5_ssd/hzli/kkcode/tmp/tmp.png', save_format='png')
 
 
 
