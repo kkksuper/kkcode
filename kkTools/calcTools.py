@@ -101,7 +101,7 @@ def calc_corr(np_1, np_2):
     return np.corrcoef(np_1, np_2)
 
 
-def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=16000, hop_size=200, win_size=800):
+def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=16000, hop_size=200, win_size=800, use_tqdm=True):
     '''
     调用 torchmetrics 计算 pesq, 越高越好，−0.5 ∼ 4.5，PESQ 值越高则表明被测试的语音具有越好的听觉语音质量 \n
     mode: \n
@@ -121,7 +121,7 @@ def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=1600
         utts = scpTools.genscp_in_list(fake_wav_dir)
     
     result = []
-    for utt in tqdm(utts):
+    for utt in tqdm(utts) if use_tqdm else utts:
         fake_wav = torch.from_numpy(
             wavTools.load_wav(
                 os.path.join(fake_wav_dir, f'{utt}.wav'),
@@ -144,7 +144,7 @@ def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=1600
     return result
 
 
-def calc_stoi(fake_wav_dir, real_wav_dir, utts=None, sample_rate=16000, hop_size=200, win_size=800):
+def calc_stoi(fake_wav_dir, real_wav_dir, utts=None, sample_rate=16000, hop_size=200, win_size=800, use_tqdm=True):
     '''
     调用 torchmetrics 计算 stoi，越高越好，0 ∼ 1 中，代表单词被正确理解的百分比，数值取1 时表示语音能够被充分理解 \n
     '''
@@ -157,7 +157,7 @@ def calc_stoi(fake_wav_dir, real_wav_dir, utts=None, sample_rate=16000, hop_size
         utts = scpTools.genscp_in_list(fake_wav_dir)
     
     result = []
-    for utt in tqdm(utts):
+    for utt in tqdm(utts) if use_tqdm else utts:
         fake_wav = torch.from_numpy(
             wavTools.load_wav(
                 os.path.join(fake_wav_dir, f'{utt}.wav'),
