@@ -326,6 +326,32 @@ def cp_files_by_replace(dir_1, dir_2, oldstr, newstr):
                   os.path.join(dir_2, new_file))
 
 
+def cp_files_by_scp_with_format(in_dir, out_dir, utts, target_format='wav', prefix=""):
+    '''
+    根据scp(list)，将某文件夹所有文件名符合的文件复制到另一个文件夹
+    '''
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)\
+        
+    for utt in tqdm(utts):
+        infile = os.path.join(in_dir, f"{utt}.{target_format}")
+        outfile = os.path.join(out_dir, prefix + f"{utt}.{target_format}")
+        try:
+            if os.path.isfile(infile):
+                os.system("cp " + infile + " " +
+                            outfile)
+            else:
+                print(f'warning: no such file in source dictory: {infile}')
+        except Exception as e:
+            if "no such" in str(e).lower():
+                print("no such file: ", os.path.join(in_dir, file))
+                traceback.print_exc()
+                continue
+            else:
+                traceback.print_exc()
+                break  
+
+
 def mv_files_by_replace(dir_1, dir_2, oldstr, newstr):
     '''
     把dir_1下所有的文件移动到dir_2，并将文件名中的 oldstr 替换为 newstr
@@ -627,12 +653,12 @@ def plot_dir_struct(root_dir, depth=0, show_file=False, exclude_file_postfix=[".
 
 def main():
 
-    mode = 16
+    mode = 0
 
     if mode == 0:
-        for ex in ['2044.*', '2086.*', '2092.*', '2093.*', '2100.*']:
-            dir_1 = "/home/work_nfs5_ssd/hzli/data/fuxi_opensource_2/mels/"
-            out_dir = "/home/work_nfs5_ssd/hzli/data/fuxi_opensource_2/test/mels/"
+        for ex in ['F0312.*', 'F03-M83-03.*', 'F03-M84-03']:
+            dir_1 = "/home/work_nfs5_ssd/hzli/data/niren/230210/linguistic_feature/txts"
+            out_dir = "/home/work_nfs6/hzli/third_party/AcademiCodec/egs/HiFi-Codec-24k-320d/txts"
             cp_files_by_ex(dir_1, out_dir, ex)
     elif mode == 1:
         dir1 = "/home/work_nfs5_ssd/hzli/data/biaobei/base/wavs/"
