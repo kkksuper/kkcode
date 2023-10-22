@@ -3,6 +3,13 @@ import math
 import re
 import random
 
+def get_basename(path):
+    '''
+    根据路径，得到不含后缀的文件名 \n
+    os.path.splitext(os.path.basename(path))[0]
+    '''
+    return os.path.splitext(os.path.basename(path))[0]
+
 def is_start_in_list(filename, flist):
     '''
     判断文件名是否以flist中的一个为开头
@@ -22,13 +29,13 @@ def scp2list(scp_path):
     return [line.strip() for line in open(scp_path, "r").readlines()]
 
 
-def list2scp(lst, out_path, sortd=False):
+def list2scp(lst, out_path, sort=False):
     '''
     将list按行写入scp文件
     '''
     f = open(out_path, "w")
     
-    if sortd:
+    if sort:
         lst.sort()
     
     f.write("\n".join(lst))
@@ -37,18 +44,19 @@ def list2scp(lst, out_path, sortd=False):
     f.close()
 
 
-def genscp_in_list(file_path):
+def genscp_in_list(file_path, sort=False):
     '''
     统计路径下所有的文件名(不含后缀)，返回name list
     '''
     filenames = [
         os.path.splitext(os.path.basename(path))[0] for path in os.listdir(file_path)
     ]
-    filenames.sort()
+    if sort:
+        filenames.sort()
     return filenames
 
 
-def genscp(file_path, out_path):
+def genscp(file_path, out_path, sort=False):
     """
     统计路径下所有的文件名，写为scp文件(一行一个文件名)
     """
@@ -56,7 +64,8 @@ def genscp(file_path, out_path):
         os.path.splitext(os.path.basename(path))[0] for path in os.listdir(file_path)
     ]
 
-    filenames.sort()
+    if sort:
+        filenames.sort()
 
     f = open(out_path, "w")
     f.write("\n".join(filenames))
@@ -226,11 +235,11 @@ def genscp_train_test_random(utts, train_path, test_path, test_num):
         else:
             train_set.append(utt)
 
-    list2scp(test_set, test_path, sortd=True)
+    list2scp(test_set, test_path, sort=True)
     list2scp(train_set, train_path)
 
 
-def genscp_from_file(file_path, out_path):
+def genscp_from_file(file_path, out_path, sort=False):
     """
     统计文件中的所有的utt，写为scp文件 \n
     输入示例: \n
@@ -241,7 +250,9 @@ def genscp_from_file(file_path, out_path):
     filenames = [
         i.split('\t')[0].strip() for i in data
     ]
-    filenames.sort()
+    
+    if sort:
+        filenames.sort()
 
     f = open(out_path, "w")
     f.write("\n".join(filenames))
@@ -250,7 +261,7 @@ def genscp_from_file(file_path, out_path):
     f.close()
 
 
-def genscp_from_file_train_test_by_start(file_path, train_path, test_path, test_list):
+def genscp_from_file_train_test_by_start(file_path, train_path, test_path, test_list, sort=False):
     """
     统计文件中的所有的utt，如果utt以test_list中某个为开头，则归为测试集，否则为训练集 \n
     输入示例: \n
@@ -265,7 +276,8 @@ def genscp_from_file_train_test_by_start(file_path, train_path, test_path, test_
         i.split('\t')[0].strip() for i in data
     ]
 
-    filenames.sort()
+    if sort:
+        filenames.sort()
 
     for filename in filenames:
         if is_start_in_list(filename, test_list):
@@ -280,7 +292,7 @@ def genscp_from_file_train_test_by_start(file_path, train_path, test_path, test_
     test_out.close()
 
 
-def exclude_scp(ori_scp, ex_scp, sort=True):
+def exclude_scp(ori_scp, ex_scp, sort=False):
     '''
     输入两个list, 返回差集
     '''
@@ -289,7 +301,7 @@ def exclude_scp(ori_scp, ex_scp, sort=True):
         out.sort()
     return out
 
-def exclude_scp_2(ori_scp, ex_scp, sort=True):
+def exclude_scp_2(ori_scp, ex_scp, sort=False):
     '''
     输入两个list, 使 ex 中每个 utt 都不是 ori 中任意 utt 的子字符串
     '''
@@ -304,12 +316,13 @@ def exclude_scp_2(ori_scp, ex_scp, sort=True):
         get.sort()
     return get
 
-def and_scp(scp_1, scp_2):
+def and_scp(scp_1, scp_2, sort=False):
     '''
     输入两个list, 返回交集
     '''
     out = list(set(scp_1).intersection(set(scp_2)))
-    out.sort()
+    if sort:
+        out.sort()
     return out
 
 
@@ -341,7 +354,7 @@ def genscp_by_ex(utts, RegExp, get_num=None):
     return get
 
 
-def split_scp(utts, split_num, use_random=False):
+def split_scp_by_splitnum(utts, split_num, use_random=False):
     '''
     将传入的 utts 分割成 split_num 个 list，可选 random
     '''
@@ -356,6 +369,24 @@ def split_scp(utts, split_num, use_random=False):
         lst[math.floor(index/each_num)].append(utt)
         
     return lst
+
+
+def split_scp_by_eachnum(utts, each_num, use_random=False):
+    '''
+    将传入的 utts 分割成若干个 list，每个 list 包含 each_num 个条目，可选 random
+    '''
+    if use_random:
+        random.shuffle(utts)
+    
+    split_num = math.ceil(1.0 * len(utts) / each_num)
+    
+    lst = [[] for i in range(split_num)]
+
+    for index, utt in enumerate(utts):
+        lst[math.floor(index/each_num)].append(utt)
+        
+    return lst
+    
     
 
 def main():
