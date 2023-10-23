@@ -12,18 +12,19 @@ import xlwt
 from scipy.interpolate import interp1d
 
 
-def load_wav(wav_path, target_sr=24000, win_size=1024, hop_size=256):
+def load_wav(wav_path, target_sr=24000, padding=True, win_size=1024, hop_size=256):
     audio, raw_sr = librosa.core.load(wav_path, sr=None)
     if raw_sr != target_sr:
         audio = librosa.core.resample(
             audio, orig_sr=raw_sr, target_sr=target_sr, res_type="kaiser_best"
         )
-        target_length = (audio.size // hop_size + win_size // hop_size) * hop_size
-        pad_len = (target_length - audio.size) // 2
-        if audio.size % 2 == 0:
-            audio = np.pad(audio, (pad_len, pad_len), mode="reflect")
-        else:
-            audio = np.pad(audio, (pad_len, pad_len + 1), mode="reflect")
+        if padding:
+            target_length = (audio.size // hop_size + win_size // hop_size) * hop_size
+            pad_len = (target_length - audio.size) // 2
+            if audio.size % 2 == 0:
+                audio = np.pad(audio, (pad_len, pad_len), mode="reflect")
+            else:
+                audio = np.pad(audio, (pad_len, pad_len + 1), mode="reflect")
     return audio
 
 
@@ -47,8 +48,7 @@ def concat_wav_by_start_cutsil(in_dir, out_dir, sil_list, name):
     '''
     切除之间的静音，拼接音频，sil_list为每个音频开头需要切掉的时间(s)
     '''
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     wavs = [
         os.path.basename(path) for path in glob.glob(in_dir + "/*.wav")
@@ -76,8 +76,7 @@ def concat_wav_by_start(in_dir, out_dir, name):
     '''
     拼接文件夹下以名字以name开头的音频，并在out_dir路径下生成名为name的音频
     '''
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     wavs = [
         os.path.basename(path) for path in glob.glob(in_dir + "/*.wav")
@@ -145,8 +144,7 @@ def downSample(utt, in_dir, out_dir, target_sr):
     '''
     将输入路径下的wav文件，降采样到目标采样率
     '''
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     file_name = "{}.wav".format(utt)
 
@@ -169,8 +167,7 @@ def downSample_scp(scp, args):
     '''
     in_dir, out_dir, target_sr = args[0], args[1], args[2]
 
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     num = 0
     # print("deal with " + in_dir)
@@ -194,8 +191,7 @@ def wav_to_one_channel(scp, args):
     '''
     in_dir, out_dir = args[0], args[1]
 
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     num = 0
     # print("deal with " + in_dir)
@@ -568,7 +564,7 @@ def main():
                 scpTools.genscp_in_list(dir1), 20, downSample_scp, dir1, dir2, sr)
     elif mode == 16:
         utt2dur = find_wav_times('/home/work_nfs5_ssd/hzli/data/niren/transfer/trimmed_wavs', 
-                                 scpTools.scp2list('/home/work_nfs5_ssd/hzli/data/niren/transfer/file_lst/train_03_500_db6_1w_less1500.lst'))
+                                 scpTools.scp2list('/home/work_nfs5_ssd/hzli/data/niren/transfer/file_lst/train_03_1w.lst'))
         print(sum([float(utt2dur[i]) for i in utt2dur])/3600)
 
 if (__name__ == "__main__"):
