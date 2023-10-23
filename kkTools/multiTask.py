@@ -53,7 +53,7 @@ def multiThread_use_multiprocessing_dicarg_spawn(scp, numthread, func, args):
     return [i.get() for i in tqdm(pool_list)]
 
 
-def multiThread_use_ProcessPoolExecutor_dicarg(scp, numthread, func, args, use_tqdm=True):
+def multiThread_use_ProcessPoolExecutor_dicarg(scp, numthread, func, args, use_tqdm=True, use_valid=False):
     '''
     根据scp得到要处理的文件名单, 创建numthread个线程, 调用func函数, 并传入若干参数以及该线程要处理的scp \n
     Parameters: \n
@@ -64,17 +64,40 @@ def multiThread_use_ProcessPoolExecutor_dicarg(scp, numthread, func, args, use_t
     '''
     executor = ProcessPoolExecutor(max_workers=numthread)
     results = []
-    valid = executor.submit(partial(func, scp[0], **args))
-    valid.result()
+    if use_valid:
+        valid = executor.submit(partial(func, scp[0], **args))
+        valid.result()
     for item in scp:
         results.append(executor.submit(partial(func, item, **args)))
     if use_tqdm:
         return [result.result() for result in tqdm(results)]
     else:
         return [result.result() for result in results]
+    
+    
+def multiThread_use_ProcessPoolExecutor_dicitem_dicarg(scp, numthread, func, args, use_tqdm=True, use_valid=False):
+    '''
+    根据scp得到要处理的名单(字典数组), 创建numthread个线程, 调用func函数, 并传入若干参数以及该线程要处理的scp \n
+    Parameters: \n
+        scp - 要处理的文件名list \n
+        numthread - 线程数 \n
+        func - 调用的函数, 该函数会接收到两部分参数, 一个文件名和args \n
+        args - 传入的一个字典参数, 执行函数最终会收到多个参数 \n
+    '''
+    executor = ProcessPoolExecutor(max_workers=numthread)
+    results = []
+    if use_valid:
+        valid = executor.submit(partial(func, **scp[0], **args))
+        valid.result()
+    for item in scp:
+        results.append(executor.submit(partial(func, **item, **args)))
+    if use_tqdm:
+        return [result.result() for result in tqdm(results)]
+    else:
+        return [result.result() for result in results]
 
 
-def multiThread_use_ProcessPoolExecutor_multiarg(scp, numthread, func, *args):
+def multiThread_use_ProcessPoolExecutor_multiarg(scp, numthread, func, use_tqdm=True, use_valid=False, *args):
     '''
     根据scp得到要处理的文件名单, 创建numthread个线程, 调用func函数, 并传入若干参数以及该线程要处理的scp \n
     Parameters: \n
@@ -85,9 +108,15 @@ def multiThread_use_ProcessPoolExecutor_multiarg(scp, numthread, func, *args):
     '''
     executor = ProcessPoolExecutor(max_workers=numthread)
     results = []
+    if use_valid:
+        valid = executor.submit(partial(func, scp[0], **args))
+        valid.result()
     for item in scp:
         results.append(executor.submit(partial(func, item, args)))
-    return [result.result() for result in tqdm(results)]
+    if use_tqdm:
+        return [result.result() for result in tqdm(results)]
+    else:
+        return [result.result() for result in results]
 
 
 def test_use_multiarg(item, args):
@@ -97,14 +126,18 @@ def test_use_multiarg(item, args):
 import time
 import random
 def test_use_dicarg(item, a=1, b=2, c=3):
-    print(f"item: {item}, a: {a}, b: {b}, c: {c}")
+    # print(f"item: {item}, a: {a}, b: {b}, c: {c}")
     time.sleep(random.random()*10)
     return item
 
+def test_use_dicitem_dicarg(a=1, b=2, c=3):
+    print(f"a: {a}, b: {b}, c: {c}")
+    time.sleep(random.random()*1)
+    return a
 
 def main():
 
-    mode = 2
+    mode = 3
 
     if mode == 1:
         dir1 = "/home/work_nfs5_ssd/hzli/kkcode/py"
@@ -116,6 +149,12 @@ def main():
         ex = {"a":"18", "b":"20"}
         utts = [i for i in range(40)]
         results = multiThread_use_ProcessPoolExecutor_dicarg(utts, 20, test_use_dicarg, ex)
+        print(results)
+    elif mode == 3:
+        dir1 = "/home/work_nfs5_ssd/hzli/kkcode/py"
+        ex = {"c":"20"}
+        utts = [{"a": i, "b": i*2} for i in range(40)]
+        results = multiThread_use_ProcessPoolExecutor_dicitem_dicarg(utts, 20, test_use_dicitem_dicarg, ex)
         print(results)
 
 
