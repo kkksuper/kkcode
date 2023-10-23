@@ -2,6 +2,11 @@ import os
 from tqdm import tqdm
 import traceback
 import numpy as np
+import torch
+from torchaudio.transforms import Resample
+from torchmetrics.audio import PerceptualEvaluationSpeechQuality
+from torchmetrics.audio import ShortTimeObjectiveIntelligibility
+from typing import List
 
 from . import scpTools, wavTools
 
@@ -101,83 +106,120 @@ def calc_corr(np_1, np_2):
     return np.corrcoef(np_1, np_2)
 
 
-def calc_pesq(fake_wav_dir, real_wav_dir, utts=None, mode='wb', sample_rate=16000, hop_size=200, win_size=800, use_tqdm=True):
+class PESQ:
     '''
     调用 torchmetrics 计算 pesq, 越高越好，−0.5 ∼ 4.5，PESQ 值越高则表明被测试的语音具有越好的听觉语音质量 \n
     mode: \n
     wb: wide bond 16k \n
     nb: narrow bond 8k
     '''
-    import torch
-    from torchaudio.transforms import Resample
-    from torchmetrics.audio import PerceptualEvaluationSpeechQuality
-    
-    assert mode in ("wb", "nb")
-    fs = 16000 if mode == "wb" else 8000
-    resample = Resample(sample_rate, fs)
-    pesq = PerceptualEvaluationSpeechQuality(fs, mode)
-    
-    if utts is None:
-        utts = scpTools.genscp_in_list(fake_wav_dir)
-    
-    result = []
-    for utt in tqdm(utts) if use_tqdm else utts:
+    def __init__(self, mode='wb', sample_rate=16000) -> None:
+        assert mode in ("wb", "nb")
+        fs = 16000 if mode == "wb" else 8000
+        self.sample_rate = sample_rate
+        self.resample = Resample(sample_rate, fs)
+        self.pesq = PerceptualEvaluationSpeechQuality(fs, mode)
+        
+        
+    def calc(self, fake_wav_path, real_wav_path):
+        '''
+        返回两个 wav 的 pesq (float) 
+        '''
         fake_wav = torch.from_numpy(
             wavTools.load_wav(
-                os.path.join(fake_wav_dir, f'{utt}.wav'),
-                target_sr=sample_rate,
-                win_size=win_size,
-                hop_size=hop_size,
+                fake_wav_path,
+                target_sr=self.sample_rate,
+                padding=False
             ),
         ).float()
         real_wav = torch.from_numpy(
             wavTools.load_wav(
-                os.path.join(real_wav_dir, f'{utt}.wav'),
-                target_sr=sample_rate,
-                win_size=win_size,
-                hop_size=hop_size,
+                real_wav_path,
+                target_sr=self.sample_rate,
+                padding=False
             ),
         ).float()
         fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
         real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
-        result.append(pesq(resample(fake_wav), resample(real_wav)))
-    return result
+        return self.pesq(self.resample(fake_wav), self.resample(real_wav))
+    
+    
+    def run(self, fake_wav_dir, real_wav_dir, utts=None, use_tqdm=True, numthread=1) -> List[float] :
+        '''
+        返回每个 utt 的 pesq，顺序和输入 utts 一样 
+        '''
+        if utts is None:
+            utts = scpTools.genscp_in_list(fake_wav_dir)
+        
+        if numthread > 1:
+            inputs = [
+                {
+                    "fake_wav_path": os.path.join(fake_wav_dir, f'{utt}.wav'),
+                    "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav')
+                } for utt in utts
+            ]
+            result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+        else: 
+            result = []
+            for utt in tqdm(utts) if use_tqdm else utts:
+                result.append(self.calc(os.path.join(fake_wav_dir, f'{utt}.wav'), os.path.join(real_wav_dir, f'{utt}.wav')))
+                
+        return result
+    
 
-
-def calc_stoi(fake_wav_dir, real_wav_dir, utts=None, sample_rate=16000, hop_size=200, win_size=800, use_tqdm=True):
+class STOI:
     '''
     调用 torchmetrics 计算 stoi，越高越好，0 ∼ 1 中，代表单词被正确理解的百分比，数值取1 时表示语音能够被充分理解 \n
     '''
-    import torch
-    from torchmetrics.audio import ShortTimeObjectiveIntelligibility
-
-    stoi = ShortTimeObjectiveIntelligibility(sample_rate)
-    
-    if utts is None:
-        utts = scpTools.genscp_in_list(fake_wav_dir)
-    
-    result = []
-    for utt in tqdm(utts) if use_tqdm else utts:
+    def __init__(self, sample_rate=16000) -> None:
+        self.sample_rate = sample_rate
+        self.stoi = ShortTimeObjectiveIntelligibility(sample_rate)
+        
+        
+    def calc(self, fake_wav_path, real_wav_path):
+        '''
+        返回两个 wav 的 pesq (float) 
+        '''
         fake_wav = torch.from_numpy(
             wavTools.load_wav(
-                os.path.join(fake_wav_dir, f'{utt}.wav'),
-                target_sr=sample_rate,
-                win_size=win_size,
-                hop_size=hop_size,
+                fake_wav_path,
+                target_sr=self.sample_rate,
+                padding=False
             ),
         ).float()
         real_wav = torch.from_numpy(
             wavTools.load_wav(
-                os.path.join(real_wav_dir, f'{utt}.wav'),
-                target_sr=sample_rate,
-                win_size=win_size,
-                hop_size=hop_size,
+                real_wav_path,
+                target_sr=self.sample_rate,
+                padding=False
             ),
         ).float()
         fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
         real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
-        result.append(stoi(fake_wav, real_wav))
-    return result
+        return self.stoi(fake_wav, real_wav)
+    
+    
+    def run(self, fake_wav_dir, real_wav_dir, utts=None, use_tqdm=True, numthread=1) -> List[float] :
+        '''
+        返回每个 utt 的 stoi，顺序和输入 utts 一样 
+        '''
+        if utts is None:
+            utts = scpTools.genscp_in_list(fake_wav_dir)
+        
+        if numthread > 1:
+            inputs = [
+                {
+                    "fake_wav_path": os.path.join(fake_wav_dir, f'{utt}.wav'),
+                    "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav')
+                } for utt in utts
+            ]
+            result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+        else: 
+            result = []
+            for utt in tqdm(utts) if use_tqdm else utts:
+                result.append(self.calc(os.path.join(fake_wav_dir, f'{utt}.wav'), os.path.join(real_wav_dir, f'{utt}.wav')))
+                
+        return result
 
 
 def main():
