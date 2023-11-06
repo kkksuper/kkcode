@@ -8,7 +8,7 @@ from torchmetrics.audio import PerceptualEvaluationSpeechQuality
 from torchmetrics.audio import ShortTimeObjectiveIntelligibility
 from typing import List
 
-from . import scpTools, wavTools
+from . import scpTools, wavTools, multiTask
 
 def calc_square_error(np1, np2):
     """
@@ -113,12 +113,13 @@ class PESQ:
     wb: wide bond 16k \n
     nb: narrow bond 8k
     '''
-    def __init__(self, mode='wb', sample_rate=16000) -> None:
+    def __init__(self, mode='wb', sample_rate=16000, device='cpu') -> None:
         assert mode in ("wb", "nb")
         fs = 16000 if mode == "wb" else 8000
         self.sample_rate = sample_rate
-        self.resample = Resample(sample_rate, fs)
+        self.resample = Resample(sample_rate, fs).to(device)
         self.pesq = PerceptualEvaluationSpeechQuality(fs, mode)
+        self.device = device
         
         
     def calc(self, fake_wav_path, real_wav_path):
@@ -139,8 +140,8 @@ class PESQ:
                 padding=False
             ),
         ).float()
-        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
-        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))].to(self.device)
+        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))].to(self.device)
         return self.pesq(self.resample(fake_wav), self.resample(real_wav))
     
     
@@ -158,7 +159,10 @@ class PESQ:
                     "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav')
                 } for utt in utts
             ]
-            result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+            if self.device == torch.device('cpu') or self.device == 'cpu':
+                result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+            else:
+                result = multiTask.multiThread_use_multiprocessing_dicitem_dicarg_spawn(inputs, numthread, self.calc, {}, use_tqdm)
         else: 
             result = []
             for utt in tqdm(utts) if use_tqdm else utts:
@@ -171,9 +175,10 @@ class STOI:
     '''
     调用 torchmetrics 计算 stoi，越高越好，0 ∼ 1 中，代表单词被正确理解的百分比，数值取1 时表示语音能够被充分理解 \n
     '''
-    def __init__(self, sample_rate=16000) -> None:
+    def __init__(self, sample_rate=16000, device='cpu') -> None:
         self.sample_rate = sample_rate
         self.stoi = ShortTimeObjectiveIntelligibility(sample_rate)
+        self.device = device
         
         
     def calc(self, fake_wav_path, real_wav_path):
@@ -194,8 +199,8 @@ class STOI:
                 padding=False
             ),
         ).float()
-        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))]
-        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))]
+        fake_wav = fake_wav[:min(fake_wav.size(0), real_wav.size(0))].to(self.device)
+        real_wav = real_wav[:min(fake_wav.size(0), real_wav.size(0))].to(self.device)
         return self.stoi(fake_wav, real_wav)
     
     
@@ -213,7 +218,10 @@ class STOI:
                     "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav')
                 } for utt in utts
             ]
-            result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+            if self.device == torch.device('cpu') or self.device == 'cpu':
+                result = multiTask.multiThread_use_ProcessPoolExecutor_dicitem_dicarg(inputs, numthread, self.calc, {}, use_tqdm)
+            else:
+                result = multiTask.multiThread_use_multiprocessing_dicitem_dicarg_spawn(inputs, numthread, self.calc, {}, use_tqdm)
         else: 
             result = []
             for utt in tqdm(utts) if use_tqdm else utts:
