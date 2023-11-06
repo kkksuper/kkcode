@@ -351,6 +351,11 @@ def export_wav_time_xlsx(in_dir,
                          seq="_",
                          exclude_dirs=[],
                          exclude_files=[]):
+    '''
+    mode:\n
+    \tdefalut: only in indir
+    \t-r: 递归查找
+    '''
     if mode == "":
         utt2len = find_wav_times(in_dir, prefix, seq)
     elif mode == "-r":
@@ -361,16 +366,19 @@ def export_wav_time_xlsx(in_dir,
 
     # print(in_dir)
     workbook = xlwt.Workbook(encoding='utf-8')  #create excel file
-    sheet1 = workbook.add_sheet('wav_data')
-
-    line = 0
     count_misc = 0.0
-
-    for utt in utt2len:
-        sheet1.write(line, 0, utt)
-        sheet1.write(line, 1, utt2len[utt])
-        line += 1
-        count_misc += float(utt2len[utt])
+    
+    utts = [utt for utt in utt2len]
+    sheetlen = len(utt2len) // 60000 + 1
+    for sheetindex in range(sheetlen):
+        sheet = workbook.add_sheet(f'wav_data_{sheetindex}')
+        line = 0
+        for utt in utts[sheetindex*60000: (sheetindex+1)*60000]:
+            sheet.write(line, 0, utt)
+            sheet.write(line, 1, utt2len[utt])
+            line += 1
+            count_misc += float(utt2len[utt])
+        
 
     if outfile is not None:
         workbook.save(outfile)
