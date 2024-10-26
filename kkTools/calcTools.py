@@ -7,7 +7,7 @@ import torch
 from torchaudio.transforms import Resample
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality
 from torchmetrics.audio import ShortTimeObjectiveIntelligibility
-from typing import List, Literal
+from typing import List, Literal, Union
 import pyworld
 
 from . import scpTools, wavTools, multiTask
@@ -456,7 +456,107 @@ class WespeakerCalc:
                 result.append(self.calc(os.path.join(fake_wav_dir, f'{utt}.wav'), os.path.join(real_wav_dir, f'{utt}.wav')))
                 
         return result
+
+
+class WER:
+    def __init__(self,
+                 metrics: Union['wer', 'cer'] = 'wer',
+                 language: Union['en', 'zh'] = 'en'):
+        '''
+        the wer/cer evaluation of the model is based on the whisper model, supporting both chinese and english.
+        '''
+        import whisper
+        from torchmetrics.text import CharErrorRate, WordErrorRate
+        self.model = whisper.load_model("large", download_root='/apdcephfs_cq10/share_1297902/user/shaanyang/interns/hanzhaoli/workspace/cache/open_model/whisper')
+        self.metrics_name = metrics
+        self.metrics = WordErrorRate() if metrics == 'wer' else CharErrorRate()
+        self.language = language
+        
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            self.model = self.model.to(device)
+            self.metrics = self.metrics.to(device)
+            
+            
+    def filter_func(self, string: str) -> str:
+        '''
+        filter function for text to remove punctuation and lower case, to exclude the influence of punctuation and case
+        '''
+        string = string.replace(".", "")
+        string = string.replace("'", "")
+        string = string.replace("-", "")
+        string = string.replace(",", "")
+        string = string.replace("!", "")
+        string = string.replace('"', '')
+        string = string.replace("?", "")
+        string = string.replace(":", "")
+        string = string.replace(";", "")
+        string = string.replace("*", "")
+        string = string.replace("  ", " ")
+        string = string.lower()
+        return string    
     
+    
+    def run_item(self, ref_item, pred_item, mode: Union['gt_audio', 'gt_content'] = 'gt_content'):
+        '''
+        input:
+            ref_item: reference item. If mode is 'gt_audio', it should be audio path. If mode is 'gt_content', it should be content string
+            pred_item: prediction item. the audio path.
+            mode: 'gt_audio' or 'gt_content'. 'gt_audio' means the ref_item is audio path, and the
+        output:
+            score: wer score
+            content_pred: predicted content
+            content_gt: ground truth content
+        '''
+        if mode == "gt_audio":
+            content_gt = self.model.transcribe(ref_item, verbose=False, language=self.language)["text"]
+        elif mode == "gt_content":
+            content_gt = ref_item
+        else:
+            raise ValueError(f"mode {mode} is not supported")
+
+        content_pred = self.model.transcribe(pred_item, verbose=False, language=self.language)["text"]
+
+        content_gt = self.filter_func(content_gt)
+        content_pred = self.filter_func(content_pred)
+        
+        return self.metrics(content_pred, content_gt).detach().cpu().numpy().tolist(), content_pred, content_gt
+        
+        
+    def run(self, ref_items, pred_items, mode: Union['gt_audio', 'gt_content'] = 'gt_content', print_res=True):
+        '''
+        input:
+            ref_items: list of reference items. If mode is 'gt_audio', it should be list of audio paths. If mode is 'gt_content', it should be list of content strings
+            pred_items: list of prediction items. the audio paths.
+            mode: 'gt_audio' or 'gt_content'. 'gt_audio' means the ref_items are audio paths, and the content will be transcribed by the model. 'gt_content' means the ref_items are already content strings.
+            print_res: whether to print the result
+        output:
+            scores: list of wer scores
+            utt2content: dict of utt2content, including content_gt, content_pred, and score
+        '''
+        scores = []
+        utt2content = {}
+        
+        pbar = tqdm(range(len(ref_items)), desc=f'calc {self.metrics_name}', leave=False, dynamic_ncols=True)
+        
+        for i in pbar:
+            ref_item = ref_items[i]
+            pred_item = pred_items[i]
+            score, content_pred, content_gt = self.run_item(ref_item, pred_item, mode)
+            scores.append(score)
+            utt2content[scpTools.get_basename(pred_item)] = {
+                'content_gt': content_gt,
+                'content_pred': content_pred,
+                'score': score
+            }
+        
+        if print_res:
+            cost_time = pbar.format_dict['elapsed']
+            avg_time = round(cost_time / len(scores), 2)
+            print(f'total {len(scores)} items, cost time: {cost_time} s, avg time: {avg_time} item/s, avg score: {np.mean(scores)}')
+            
+        return scores, utt2content
+
 
 def main():
 
