@@ -40,12 +40,7 @@ def sort_json_3(js, reverse=True):
     '''
     按照json的键排序(从小到大), reverse 表示逆转排序
     '''
-    f = zip(js.keys(), js.values())
-    c = sorted(f, reverse=reverse, key=lambda l:l[1])
-    new_js = {}
-    for cc in c:
-        new_js[cc[0]] = cc[1]
-    return new_js
+    return dict(sorted(js.items(), key=lambda item: item[0], reverse=reverse))
 
 def read_json(js_path, enc='utf-8'):
     '''
