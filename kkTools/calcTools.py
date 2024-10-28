@@ -416,6 +416,7 @@ class WespeakerCalc:
     def __init__(self, device='cpu', language:Literal['english', 'chinese']='chinese') -> None:
         import wespeaker
         self.model = wespeaker.load_model(language)
+        self.model.set_device(device)
         self.device = device
         
         
