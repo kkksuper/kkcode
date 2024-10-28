@@ -436,6 +436,7 @@ class WespeakerCalc:
     def run(self, fake_wav_dir, real_wav_dir, utts=None, use_tqdm=True, numthread=1) -> List[float] :
         '''
         返回每个 utt 的 speaker cosine similarity，顺序和输入 utts 一样 
+        fake dir 必须是 wav 文件夹，real dir 可以是 wav 文件夹或者单个 wav 文件，如果是单个 wav 文件，那么所有的 fake wav 都会和这个 real wav 进行比较，否则，每个 fake wav 会和文件名对应的 real wav 进行比较
         '''
         if utts is None:
             utts = scpTools.genscp_in_list(fake_wav_dir)
@@ -444,7 +445,7 @@ class WespeakerCalc:
             inputs = [
                 {
                     "fake_wav_path": os.path.join(fake_wav_dir, f'{utt}.wav'),
-                    "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav')
+                    "real_wav_path": os.path.join(real_wav_dir, f'{utt}.wav') if os.path.isdir(real_wav_dir) else real_wav_dir
                 } for utt in utts
             ]
             if self.device == torch.device('cpu') or self.device == 'cpu':
@@ -454,7 +455,7 @@ class WespeakerCalc:
         else: 
             result = []
             for utt in tqdm(utts) if use_tqdm else utts:
-                result.append(self.calc(os.path.join(fake_wav_dir, f'{utt}.wav'), os.path.join(real_wav_dir, f'{utt}.wav')))
+                result.append(self.calc(os.path.join(fake_wav_dir, f'{utt}.wav'), os.path.join(real_wav_dir, f'{utt}.wav') if os.path.isdir(real_wav_dir) else real_wav_dir))
                 
         return result
 
