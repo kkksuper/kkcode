@@ -432,6 +432,12 @@ class WespeakerCalc:
         
         return cos_simi
     
+    def extract_embedding(self, wav_path):
+        '''
+        返回 wav 的 wespeaker embedding
+        '''
+        return self.model.extract_embedding(wav_path)
+    
     
     def run(self, fake_wav_dir, real_wav_dir, utts=None, use_tqdm=True, numthread=1) -> List[float] :
         '''
