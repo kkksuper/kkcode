@@ -236,11 +236,12 @@ class MCD:
     计算 MCD（mel cepstral distortion），越低越好\n
     reference repo: https://github.com/chenqi008/pymcd/blob/main/pymcd/mcd.py
     '''
-    def __init__(self, sample_rate=16000, mode:Literal['plain', 'dtw', 'dtw_sl']='plain', FRAME_PERIOD=5.0) -> None:
+    def __init__(self, sample_rate=16000, mode:Literal['plain', 'dtw', 'dtw_sl']='plain', FRAME_PERIOD=5.0, device='cpu') -> None:
         self.sample_rate = sample_rate
         self.log_spec_dB_const = 10.0 / math.log(10.0) * math.sqrt(2.0) # 6.141851463713754
         self.mode = mode
         self.FRAME_PERIOD = FRAME_PERIOD
+        self.device = device
     
     # distance metric
     def log_spec_dB_dist(self, x, y):
