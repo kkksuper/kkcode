@@ -428,7 +428,7 @@ class WespeakerCalc:
         fake_emb = self.model.extract_embedding(fake_wav_path)
         real_emb = self.model.extract_embedding(real_wav_path)
         
-        cos_simi = np.dot(fake_emb, real_emb) / (np.linalg.norm(fake_emb) * np.linalg.norm(real_emb))
+        cos_simi = np.dot(fake_emb, real_emb) / (np.linalg.norm(fake_emb) * np.linalg.norm(real_emb)).tolist()
         
         return cos_simi
     
