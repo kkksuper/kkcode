@@ -383,7 +383,7 @@ class SpeechMOS:
             ),
         ).float().to(self.device).unsqueeze(0)
         with torch.no_grad():
-            res = self.utmos(wav, self.sample_rate)
+            res = self.utmos(wav, self.sample_rate).item()
         return res
     
     
