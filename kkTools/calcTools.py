@@ -366,7 +366,9 @@ class SpeechMOS:
     def __init__(self, sample_rate=16000, device='cpu') -> None:
         self.sample_rate = sample_rate
         self.utmos = torch.hub.load(repo_or_dir="tarepan/SpeechMOS:v1.2.0", model='utmos22_strong', trust_repo=True)
+        self.utmos.eval()
         self.device = device
+        self.utmos.to(device)
         
         
     def calc(self, wav_path):
@@ -380,8 +382,9 @@ class SpeechMOS:
                 padding=False
             ),
         ).float().to(self.device).unsqueeze(0)
-        
-        return self.utmos(wav, self.sample_rate).item()
+        with torch.no_grad():
+            res = self.utmos(wav, self.sample_rate)
+        return res
     
     
     def run(self, wav_dir, utts=None, use_tqdm=True, numthread=1) -> List[float] :
